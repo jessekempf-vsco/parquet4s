@@ -48,7 +48,7 @@ object ParquetWriter {
 
   private val SignatureMetadata = Map("MadeBy" -> "https://github.com/mjakubowski84/parquet4s")
 
-  private class InternalBuilder(path: Path, schema: MessageType)
+  private class InternalBuilder(path: Path, schema: MessageType, customProperties: Map[String, String])
       extends HadoopParquetWriter.Builder[RowParquetRecord, InternalBuilder](path.toHadoop) {
     private val logger = LoggerFactory.getLogger(ParquetWriter.this.getClass)
 
@@ -59,7 +59,7 @@ object ParquetWriter {
     override def self(): InternalBuilder = this
 
     override def getWriteSupport(conf: Configuration): WriteSupport[RowParquetRecord] =
-      new ParquetWriteSupport(schema, SignatureMetadata)
+      new ParquetWriteSupport(schema, customProperties ++ SignatureMetadata)
   }
 
   /** Configuration of parquet writer. Please have a look at <a
@@ -70,6 +70,8 @@ object ParquetWriter {
     *   can be used to programmatically set Hadoop's [[org.apache.hadoop.conf.Configuration]]
     * @param timeZone
     *   used when encoding time-based data, local machine's time zone is used by default
+    * @param metadata
+    *   used to provide additional
     */
   case class Options(
       writeMode: ParquetFileWriter.Mode          = ParquetFileWriter.Mode.CREATE,
@@ -81,7 +83,8 @@ object ParquetWriter {
       rowGroupSize: Long                         = HadoopParquetWriter.DEFAULT_BLOCK_SIZE,
       validationEnabled: Boolean                 = HadoopParquetWriter.DEFAULT_IS_VALIDATING_ENABLED,
       hadoopConf: Configuration                  = new Configuration(),
-      timeZone: TimeZone                         = TimeZone.getDefault
+      timeZone: TimeZone                         = TimeZone.getDefault,
+      customProperties: Map[String, String]      = Map.empty,
   )
 
   /** Builder of [[ParquetWriter]].
@@ -117,7 +120,7 @@ object ParquetWriter {
   }
 
   private[parquet4s] def internalWriter(path: Path, schema: MessageType, options: Options): InternalWriter =
-    new InternalBuilder(path, schema)
+    new InternalBuilder(path, schema, options.customProperties)
       .withWriteMode(options.writeMode)
       .withCompressionCodec(options.compressionCodecName)
       .withDictionaryEncoding(options.dictionaryEncodingEnabled)
